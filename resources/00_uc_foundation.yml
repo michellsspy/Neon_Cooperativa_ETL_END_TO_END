@@ -1,0 +1,29 @@
+resources:
+
+  schemas:
+
+    landing:
+      name: landing
+      catalog_name: ${var.catalog_name}
+      comment: >
+        Landing Zone para preservacao dos dados recebidos
+        das fontes antes das transformacoes das camadas medalhao.
+
+    control:
+      name: control
+      catalog_name: ${var.catalog_name}
+      comment: >
+        Schema de controle operacional da plataforma:
+        metadados de ingestao, configuracoes, execucoes,
+        watermarks, reconciliacao e reprocessamento.
+
+  volumes:
+
+    landing_raw:
+      name: raw
+      catalog_name: ${var.catalog_name}
+      schema_name: ${resources.schemas.landing.name}
+      volume_type: MANAGED
+      comment: >
+        Volume gerenciado para persistencia imutavel
+        dos dados capturados das fontes antes da Bronze.

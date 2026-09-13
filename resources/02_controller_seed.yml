@@ -1,0 +1,38 @@
+resources:
+
+  jobs:
+
+    controller_seed:
+      name: controller_seed
+
+      tasks:
+
+        - task_key: seed_source_metadata
+
+          spark_python_task:
+            python_file: ../src/bootstrap/seed_source_metadata.py
+
+            parameters:
+              - --catalog
+              - ${var.catalog_name}
+
+              - --source-catalog
+              - ${var.source_catalog_name}
+
+              - --source-schema
+              - ${var.source_schema_name}
+
+              - --source-system-key
+              - ${var.source_system_key}
+
+              - --landing-volume
+              - ${var.landing_volume_name}
+
+          environment_key: default
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"

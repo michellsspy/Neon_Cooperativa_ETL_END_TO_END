@@ -1,0 +1,26 @@
+resources:
+
+  jobs:
+
+    controller_profile_incremental:
+      name: controller_profile_incremental
+
+      tasks:
+
+        - task_key: profile_incremental_candidates
+
+          spark_python_task:
+            python_file: ../src/bootstrap/profile_incremental_candidates.py
+
+            parameters:
+              - --catalog
+              - ${var.catalog_name}
+
+          environment_key: default
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"

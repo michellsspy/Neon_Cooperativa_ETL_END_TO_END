@@ -1,0 +1,43 @@
+bundle:
+  name: neon_cooperativa_etl_end_to_end
+  engine: direct
+
+include:
+  - resources/*.yml
+
+experimental:
+  skip_name_prefix_for_schema: true
+
+variables:
+  catalog_name:
+    description: Catalogo gerenciado do projeto
+    default: neon_cooperativa_dev
+
+  source_catalog_name:
+    description: Foreign Catalog que representa a origem PostgreSQL Neon
+    default: neon_fenix_cooperativa
+
+  source_schema_name:
+    description: Schema de origem no PostgreSQL
+    default: public
+
+  source_system_key:
+    description: Identificador logico do sistema de origem
+    default: neon_postgresql
+
+  landing_volume_name:
+    description: Volume gerenciado utilizado pela Landing Zone
+    default: raw
+
+targets:
+
+  dev:
+    default: true
+    mode: development
+
+    variables:
+      catalog_name: neon_cooperativa_dev
+      source_catalog_name: neon_fenix_cooperativa
+      source_schema_name: public
+      source_system_key: neon_postgresql
+      landing_volume_name: raw

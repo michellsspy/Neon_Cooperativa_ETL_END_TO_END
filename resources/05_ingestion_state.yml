@@ -1,0 +1,26 @@
+resources:
+
+  jobs:
+
+    controller_bootstrap_ingestion_state:
+      name: controller_bootstrap_ingestion_state
+
+      tasks:
+
+        - task_key: bootstrap_ingestion_state
+
+          spark_python_task:
+            python_file: ../src/bootstrap/create_ingestion_state.py
+
+            parameters:
+              - --catalog
+              - ${var.catalog_name}
+
+          environment_key: default
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"
