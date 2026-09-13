@@ -1,0 +1,139 @@
+resources:
+
+  jobs:
+
+    ingestion_repair_run:
+      name: ingestion_repair_run
+
+      parameters:
+
+        - name: run_id
+          default: ""
+
+      tasks:
+
+        # ====================================================
+        # 1. PREPARA NOVAS TENTATIVAS
+        # ====================================================
+
+        - task_key: prepare_repair
+
+          notebook_task:
+
+            notebook_path:
+              ../src/orchestration/prepare_ingestion_repair.py
+
+            base_parameters:
+
+              catalog:
+                ${var.catalog_name}
+
+              run_id:
+                "{{job.parameters.run_id}}"
+
+
+        # ====================================================
+        # 2. MATERIALIZA SOMENTE O QUE FALTOU
+        # ====================================================
+
+        - task_key: materialize_repair_objects
+
+          depends_on:
+
+            - task_key: prepare_repair
+
+          for_each_task:
+
+            inputs:
+              "{{tasks.prepare_repair.values.run_objects}}"
+
+            concurrency: 1
+
+            task:
+
+              task_key: materialize_repair_object
+
+              max_retries: 0
+              retry_on_timeout: false
+
+              spark_python_task:
+
+                python_file:
+                  ../src/ingestion/materialize_landing_object.py
+
+                parameters:
+
+                  - --catalog
+                  - ${var.catalog_name}
+
+                  - --run-object-id
+                  - "{{input.run_object_id}}"
+
+              environment_key: default
+
+
+        # ====================================================
+        # 3. RECONCILIA O RUN COMPLETO
+        # ====================================================
+
+        - task_key: reconcile_run
+
+          depends_on:
+
+            - task_key: materialize_repair_objects
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/reconcile_ingestion_run.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{tasks.prepare_repair.values.run_id}}"
+
+          environment_key: default
+
+
+        # ====================================================
+        # 4. COMMIT DO CHECKPOINT
+        # ====================================================
+
+        - task_key: commit_state
+
+          depends_on:
+
+            - task_key: reconcile_run
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/commit_ingestion_state.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{tasks.prepare_repair.values.run_id}}"
+
+          environment_key: default
+
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+
+            environment_version: "2"

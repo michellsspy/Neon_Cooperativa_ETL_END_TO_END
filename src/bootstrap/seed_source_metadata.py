@@ -126,6 +126,12 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--source-connection",
+        required=True,
+        help="Nome da conexão Unity Catalog usada pelo Foreign Catalog.",
+    )
+
+    parser.add_argument(
         "--landing-volume",
         required=True,
         help="Volume utilizado pela Landing Zone.",
@@ -464,6 +470,7 @@ def seed_source_system(
     catalog: str,
     source_catalog: str,
     source_system_key: str,
+    source_connection: str,
 ):
     """
     Insere ou atualiza o sistema de origem.
@@ -525,7 +532,7 @@ def seed_source_system(
         (
             source_system_key,
             SOURCE_TYPE,
-            None,
+            source_connection,
             source_catalog,
             (
                 "Banco PostgreSQL Neon utilizado como origem "
@@ -565,6 +572,9 @@ def seed_source_system(
 
                 tgt.source_type =
                     src.source_type,
+
+                tgt.connection_name =
+                    src.connection_name,
 
                 tgt.foreign_catalog =
                     src.foreign_catalog,
@@ -1542,6 +1552,10 @@ def main():
         args.source_system_key
     )
 
+    source_connection = validate_identifier(
+        args.source_connection
+    )
+
     landing_volume = validate_identifier(
         args.landing_volume
     )
@@ -1631,6 +1645,7 @@ def main():
         catalog=catalog,
         source_catalog=source_catalog,
         source_system_key=source_system_key,
+        source_connection=source_connection,
     )
 
     # --------------------------------------------------------

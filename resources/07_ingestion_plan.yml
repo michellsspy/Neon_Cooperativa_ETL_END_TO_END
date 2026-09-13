@@ -1,0 +1,53 @@
+resources:
+
+  jobs:
+
+    ingestion_plan:
+      name: ingestion_plan
+
+      parameters:
+
+        - name: schedule_group
+          default: ALL
+
+        - name: requested_by
+          default: lakeflow_job
+
+      tasks:
+
+        - task_key: plan_ingestion
+
+          spark_python_task:
+            python_file: ../src/ingestion/plan_ingestion_run.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --schedule-group
+              - "{{job.parameters.schedule_group}}"
+
+              - --requested-by
+              - "{{job.parameters.requested_by}}"
+
+              - --orchestrator-job-id
+              - "{{job.id}}"
+
+              - --orchestrator-run-id
+              - "{{job.run_id}}"
+
+              - --repair-count
+              - "{{job.repair_count}}"
+
+              - --orchestrator-trigger-type
+              - "{{job.trigger.type}}"
+
+          environment_key: default
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"

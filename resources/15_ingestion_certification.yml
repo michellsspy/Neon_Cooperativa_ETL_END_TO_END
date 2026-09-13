@@ -1,0 +1,33 @@
+resources:
+
+  jobs:
+
+    ingestion_certification:
+      name: ingestion_certification
+
+      tasks:
+
+        - task_key: certify_ingestion
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/certification/certify_ingestion_phase.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+          environment_key: default
+
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"

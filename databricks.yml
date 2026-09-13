@@ -25,12 +25,15 @@ variables:
     description: Identificador logico do sistema de origem
     default: neon_postgresql
 
+  source_connection_name:
+    description: Conexao Unity Catalog utilizada pelo Foreign Catalog da origem
+    default: conn_neon_fenix_cooperativa
+
   landing_volume_name:
     description: Volume gerenciado utilizado pela Landing Zone
     default: raw
 
 targets:
-
   dev:
     default: true
     mode: development
@@ -40,4 +43,5 @@ targets:
       source_catalog_name: neon_fenix_cooperativa
       source_schema_name: public
       source_system_key: neon_postgresql
+      source_connection_name: conn_neon_fenix_cooperativa
       landing_volume_name: raw

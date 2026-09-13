@@ -1,0 +1,139 @@
+resources:
+
+  jobs:
+
+    ingestion_manual_reprocess:
+      name: ingestion_manual_reprocess
+
+      parameters:
+
+        - name: source_run_object_id
+          default: ""
+
+        - name: requested_by
+          default: manual_reprocess
+
+      tasks:
+
+        # ====================================================
+        # 1. PREPARAÇÃO
+        # ====================================================
+
+        - task_key: prepare_reprocess
+
+          notebook_task:
+
+            notebook_path:
+              ../src/orchestration/prepare_manual_reprocessing.py
+
+            base_parameters:
+
+              catalog:
+                ${var.catalog_name}
+
+              source_run_object_id:
+                "{{job.parameters.source_run_object_id}}"
+
+              requested_by:
+                "{{job.parameters.requested_by}}"
+
+              orchestrator_job_id:
+                "{{job.id}}"
+
+              orchestrator_run_id:
+                "{{job.run_id}}"
+
+
+        # ====================================================
+        # 2. MATERIALIZAÇÃO
+        # ====================================================
+
+        - task_key: materialize_reprocess
+
+          depends_on:
+
+            - task_key: prepare_reprocess
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/materialize_landing_object.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-object-id
+              - "{{tasks.prepare_reprocess.values.run_object_id}}"
+
+          environment_key: default
+
+
+        # ====================================================
+        # 3. RECONCILIAÇÃO
+        # ====================================================
+
+        - task_key: reconcile_reprocess
+
+          depends_on:
+
+            - task_key: materialize_reprocess
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/reconcile_ingestion_run.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{tasks.prepare_reprocess.values.run_id}}"
+
+          environment_key: default
+
+
+        # ====================================================
+        # 4. FINALIZAÇÃO SEM COMMIT DE STATE
+        # ====================================================
+
+        - task_key: finalize_reprocess
+
+          depends_on:
+
+            - task_key: reconcile_reprocess
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/finalize_reprocessing_run.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{tasks.prepare_reprocess.values.run_id}}"
+
+          environment_key: default
+
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"

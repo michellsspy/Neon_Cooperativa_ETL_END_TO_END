@@ -1,0 +1,39 @@
+resources:
+
+  jobs:
+
+    ingestion_commit_state:
+      name: ingestion_commit_state
+
+      parameters:
+
+        - name: run_id
+          default: ""
+
+      tasks:
+
+        - task_key: commit_ingestion_state
+
+          max_retries: 0
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file: ../src/ingestion/commit_ingestion_state.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{job.parameters.run_id}}"
+
+          environment_key: default
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+            environment_version: "2"

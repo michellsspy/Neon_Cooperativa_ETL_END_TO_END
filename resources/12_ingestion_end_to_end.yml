@@ -1,0 +1,197 @@
+resources:
+
+  jobs:
+
+    ingestion_end_to_end:
+      name: ingestion_end_to_end
+
+      parameters:
+
+        - name: schedule_group
+          default: ALL
+
+        - name: requested_by
+          default: lakeflow_job
+
+      tasks:
+
+        # ====================================================
+        # 1. PLANEJAMENTO
+        # ====================================================
+
+        - task_key: plan_ingestion
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/plan_ingestion_run.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --schedule-group
+              - "{{job.parameters.schedule_group}}"
+
+              - --requested-by
+              - "{{job.parameters.requested_by}}"
+
+              - --orchestrator-job-id
+              - "{{job.id}}"
+
+              - --orchestrator-run-id
+              - "{{job.run_id}}"
+
+              - --repair-count
+              - "{{job.repair_count}}"
+
+              - --orchestrator-trigger-type
+              - "{{job.trigger.type}}"
+
+          environment_key: default
+
+
+        # ====================================================
+        # 2. PUBLICAÇÃO DO PLANO
+        # ====================================================
+
+        - task_key: publish_plan
+
+          depends_on:
+
+            - task_key: plan_ingestion
+
+          notebook_task:
+
+            notebook_path:
+              ../src/orchestration/publish_ingestion_plan.py
+
+            base_parameters:
+
+              catalog:
+                ${var.catalog_name}
+
+              orchestrator_job_id:
+                "{{job.id}}"
+
+              orchestrator_run_id:
+                "{{job.run_id}}"
+
+
+        # ====================================================
+        # 3. MATERIALIZAÇÃO
+        # ====================================================
+
+        - task_key: materialize_objects
+
+          depends_on:
+
+            - task_key: publish_plan
+
+          for_each_task:
+
+            inputs:
+              "{{tasks.publish_plan.values.run_objects}}"
+
+            # Começamos sequencialmente.
+            #
+            # Aumentaremos somente depois da fase
+            # de ingestão estar certificada.
+            concurrency: 1
+
+            task:
+
+              task_key: materialize_one_object
+
+              max_retries: 0
+
+              retry_on_timeout: false
+
+              spark_python_task:
+
+                python_file:
+                  ../src/ingestion/materialize_landing_object.py
+
+                parameters:
+
+                  - --catalog
+                  - ${var.catalog_name}
+
+                  - --run-object-id
+                  - "{{input.run_object_id}}"
+
+              environment_key: default
+
+
+        # ====================================================
+        # 4. RECONCILIAÇÃO
+        # ====================================================
+
+        - task_key: reconcile_run
+
+          depends_on:
+
+            - task_key: materialize_objects
+
+          max_retries: 0
+
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/reconcile_ingestion_run.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{tasks.publish_plan.values.run_id}}"
+
+          environment_key: default
+
+
+        # ====================================================
+        # 5. COMMIT DO CHECKPOINT
+        # ====================================================
+
+        - task_key: commit_state
+
+          depends_on:
+
+            - task_key: reconcile_run
+
+          max_retries: 0
+
+          retry_on_timeout: false
+
+          spark_python_task:
+
+            python_file:
+              ../src/ingestion/commit_ingestion_state.py
+
+            parameters:
+
+              - --catalog
+              - ${var.catalog_name}
+
+              - --run-id
+              - "{{tasks.publish_plan.values.run_id}}"
+
+          environment_key: default
+
+
+      # ======================================================
+      # SERVERLESS ENVIRONMENT
+      # ======================================================
+
+      environments:
+
+        - environment_key: default
+
+          spec:
+
+            environment_version: "2"
